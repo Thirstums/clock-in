@@ -1,5 +1,4 @@
 use dotenvy::dotenv;
-use rand::Rng;
 use serenity::{
     async_trait,
     model::{channel::Message, gateway::Ready},
@@ -13,11 +12,10 @@ use std::{
 };
 use tokio::sync::Mutex;
 
-const ROAST_CHANCE: f64 = 0.12; // 12% chance per message
+const ROAST_CHANCE: f64 = 0.12; // 12%
 const COOLDOWN_SECS: u64 = 45;
 
 struct Handler {
-    // user_id -> last_roast_time
     last_roast: Arc<Mutex<HashMap<u64, Instant>>>,
     roasts: Vec<&'static str>,
 }
@@ -29,24 +27,21 @@ impl EventHandler for Handler {
     }
 
     async fn message(&self, ctx: Context, msg: Message) {
-        // Don’t roast bots (including yourself)
         if msg.author.bot {
             return;
         }
 
-        // Optional: ignore very short messages
         if msg.content.trim().len() < 3 {
             return;
         }
 
-        // Random chance gate
-        let mut rng = rand::thread_rng();
-        let roll: f64 = rng.gen();
+        // Rust 2024-safe random roll
+        let roll: f64 = rand::random();
         if roll > ROAST_CHANCE {
             return;
         }
 
-        // Cooldown gate (per user)
+        // Cooldown per user
         let user_id = msg.author.id.get();
         {
             let mut map = self.last_roast.lock().await;
@@ -58,10 +53,10 @@ impl EventHandler for Handler {
             map.insert(user_id, Instant::now());
         }
 
-        // Pick a roast
-        let roast = self.roasts[rng.gen_range(0..self.roasts.len())];
+        // Pick random roast
+        let idx = (rand::random::<f64>() * self.roasts.len() as f64) as usize;
+        let roast = self.roasts[idx];
 
-        // Reply (replying to their message looks nice)
         let _ = msg
             .reply(&ctx.http, format!("{} {}", msg.author.mention(), roast))
             .await;
@@ -71,7 +66,8 @@ impl EventHandler for Handler {
 #[tokio::main]
 async fn main() {
     dotenv().ok();
-    let token = env::var("DISCORD_TOKEN").expect("Missing DISCORD_TOKEN in .env");
+    let token = env::var("DISCORD_TOKEN")
+        .expect("Missing DISCORD_TOKEN in .env");
 
     let intents = GatewayIntents::GUILD_MESSAGES
         | GatewayIntents::DIRECT_MESSAGES
