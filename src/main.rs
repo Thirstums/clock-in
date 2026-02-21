@@ -26,41 +26,123 @@ impl EventHandler for Handler {
         println!("Logged in as {}", ready.user.name);
     }
 
-    async fn message(&self, ctx: Context, msg: Message) {
-        if msg.author.bot {
-            return;
-        }
-
-        if msg.content.trim().len() < 3 {
-            return;
-        }
-
-        //random roll
-        let roll: f64 = rand::random();
-        if roll > ROAST_CHANCE {
-            return;
-        }
-
-        // Cooldown per user
-        let user_id = msg.author.id.get();
-        {
-            let mut map = self.last_roast.lock().await;
-            if let Some(last) = map.get(&user_id) {
-                if last.elapsed() < Duration::from_secs(COOLDOWN_SECS) {
-                    return;
-                }
-            }
-            map.insert(user_id, Instant::now());
-        }
-
-        // Pick random roast
-        let idx = (rand::random::<f64>() * self.roasts.len() as f64) as usize;
-        let roast = self.roasts[idx];
-
-        let _ = msg
-            .reply(&ctx.http, format!("{} {}", msg.author.mention(), roast))
-            .await;
+ async fn message(&self, ctx: Context, msg: Message) {
+    if msg.author.bot {
+        return;
     }
+
+    let content_lc = msg.content.to_lowercase();
+
+    // --- Mention behavior: controlled responses ---
+    if msg.mentions_me(&ctx.http).await.unwrap_or(false) {
+        // Determine if this is a roast command
+        let is_roast_cmd = content_lc.contains("roast");
+
+        // Greeting vibes
+        let is_greeting = content_lc.contains("hi")
+            || content_lc.contains("hello")
+            || content_lc.contains("hey")
+            || content_lc.contains("yo")
+            || content_lc.contains("sup")
+            || content_lc.contains("whats up")
+            || content_lc.contains("what's up");
+
+        if is_roast_cmd {
+            // Roast target: first mentioned user that's NOT the bot.
+            // If no valid target, roast the author.
+            let target = msg
+                .mentions
+                .iter()
+                .find(|u| !u.bot) // typically skips your bot mention
+                .unwrap_or(&msg.author);
+
+            // cooldown per target to avoid spam roast-pings
+            let target_id = target.id.get();
+            {
+                let mut map = self.last_roast.lock().await;
+                if let Some(last) = map.get(&target_id) {
+                    if last.elapsed() < Duration::from_secs(COOLDOWN_SECS) {
+                        let _ = msg
+                            .reply(&ctx.http, "Cool it. My roast cannon is on cooldown. 🙄")
+                            .await;
+                        return;
+                    }
+                }
+                map.insert(target_id, Instant::now());
+            }
+
+            let idx = (rand::random::<f64>() * self.roasts.len() as f64) as usize;
+            let roast = self.roasts[idx];
+
+            let _ = msg
+                .channel_id
+                .say(&ctx.http, format!("{} {}", target.mention(), roast))
+                .await;
+
+            return;
+        }
+
+        if is_greeting {
+            let nice_rude = [
+                "hey. what do you want?",
+                "hi. make it quick.",
+                "yo. speak.",
+                "hello. proceed with purpose.",
+                "sup. try not to waste my time.",
+                "hey bestie. state your business.",
+            ];
+            let idx = (rand::random::<f64>() * nice_rude.len() as f64) as usize;
+
+            let _ = msg
+                .reply(&ctx.http, nice_rude[idx])
+                .await;
+
+            return;
+        }
+
+        // Default mention response
+        let defaults = [
+            "yes?",
+            "what do you want?",
+            "you summoned me. now talk.",
+            "i’m listening. unfortunately.",
+            "make it interesting.",
+        ];
+        let idx = (rand::random::<f64>() * defaults.len() as f64) as usize;
+
+        let _ = msg.reply(&ctx.http, defaults[idx]).await;
+        return;
+    }
+
+    // --- Random roast behavior: chaotic background mode ---
+    if msg.content.trim().len() < 3 {
+        return;
+    }
+
+    let roll: f64 = rand::random();
+    if roll > ROAST_CHANCE {
+        return;
+    }
+
+    // Cooldown per author (so it doesn't bully one person nonstop)
+    let user_id = msg.author.id.get();
+    {
+        let mut map = self.last_roast.lock().await;
+        if let Some(last) = map.get(&user_id) {
+            if last.elapsed() < Duration::from_secs(COOLDOWN_SECS) {
+                return;
+            }
+        }
+        map.insert(user_id, Instant::now());
+    }
+
+    let idx = (rand::random::<f64>() * self.roasts.len() as f64) as usize;
+    let roast = self.roasts[idx];
+
+    let _ = msg
+        .reply(&ctx.http, format!("{} {}", msg.author.mention(), roast))
+        .await;
+}
 }
 
 #[tokio::main]
