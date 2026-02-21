@@ -35,7 +35,7 @@ impl EventHandler for Handler {
             return;
         }
 
-        // Rust 2024-safe random roll
+        //random roll
         let roll: f64 = rand::random();
         if roll > ROAST_CHANCE {
             return;
