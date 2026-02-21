@@ -1,0 +1,41 @@
+# ===== Rust / Cargo =====
+/target/
+**/*.rs.bk
+
+# Cargo.lock
+# Keep this if it's a binary/app. Remove this line if you're building a library.
+Cargo.lock
+
+# ===== IDEs / Editors =====
+# VS Code
+.vscode/
+
+# JetBrains (RustRover, CLion, IntelliJ, etc.)
+.idea/
+*.iml
+
+# ===== OS junk =====
+.DS_Store
+Thumbs.db
+
+# ===== Logs / Temp =====
+*.log
+*.tmp
+*.swp
+
+# ===== Environment / Secrets =====
+.env
+.env.local
+.env.*.local
+
+# ===== Build artifacts =====
+*.exe
+*.dll
+*.so
+*.dylib
+
+# ===== Coverage / Profiling =====
+*.prof
+*.gcda
+*.gcno
+*.gcov
